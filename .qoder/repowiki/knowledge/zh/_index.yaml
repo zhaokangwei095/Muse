@@ -1,0 +1,34 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: Q0DeR-MaG1C-BrAnCh-Fo2-NoN-GiT-Or-No-C0MmIt
+nodes_managed: true
+exported_at: "2026-08-06T03:47:17Z"
+modules:
+    "":
+        dir_name: Muse 全栈应用（React + Express + Gemini AI）
+        title: Muse 全栈应用（React + Express + Gemini AI）
+        scope:
+            - README.md
+            - .gitignore
+            - index.html
+            - metadata.json
+            - package.json
+            - tsconfig.json
+            - vite.config.ts
+            - server.ts
+            - .env.example
+        source_files: []
+        children:
+            - frontend_app
+        depends_on: []
+        related_to: []
+    frontend_app:
+        dir_name: Muse 前端应用（React + Tailwind 单页应用）
+        title: Muse 前端应用（React + Tailwind 单页应用）
+        scope:
+            - src/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

@@ -1,0 +1,246 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { NavTab, PostItem, User, DirectMessage, BookmarkCollection } from '../types';
+import { CREATOR_ELENA_RIVERA } from '../data/mockData';
+import { api } from '../services/api';
+
+interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+interface AppContextType {
+  // State
+  currentTab: NavTab;
+  setCurrentTab: (tab: NavTab) => void;
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+  isMobile: boolean;
+  user: User | null;
+  posts: PostItem[];
+  exploreCards: PostItem[];
+  messages: DirectMessage[];
+  bookmarks: BookmarkCollection[];
+  selectedPost: PostItem | null;
+  setSelectedPost: (post: PostItem | null) => void;
+  isReplying: boolean;
+  isLoading: boolean;
+  toasts: Toast[];
+
+  // Actions
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  toggleLike: (postId: string) => void;
+  toggleSave: (postId: string) => void;
+  publishPost: (data: { title: string; content?: string; imageUrl?: string; category: string; tags: string[] }) => Promise<void>;
+  sendMessage: (text: string) => Promise<void>;
+  removeBookmark: (id: string) => void;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  addComment: (postId: string, text: string) => Promise<void>;
+  refreshPosts: () => Promise<void>;
+}
+
+const AppContext = createContext<AppContextType | null>(null);
+
+export function useApp(): AppContextType {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
+}
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [currentTab, setCurrentTab] = useState<NavTab>('discovery');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Mobile mode: forced via ?mobile=1 / ?mobile=0 (persisted), otherwise real viewport detection
+  const [isMobile, setIsMobile] = useState(() => {
+    const forced = localStorage.getItem('muse-force-mobile');
+    if (forced === '1') return true;
+    if (forced === '0') return false;
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  });
+  const [user, setUser] = useState<User | null>(null);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [exploreCards, setExploreCards] = useState<PostItem[]>([]);
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [bookmarks, setBookmarks] = useState<BookmarkCollection[]>([]);
+  const [selectedPost, setSelectedPost] = useState<PostItem | null>(null);
+  const [isReplying, setIsReplying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Toast system
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = `toast_${Date.now()}`;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  }, []);
+
+  // Handle ?mobile=1 / ?mobile=0 query param + live viewport tracking
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const param = params.get('mobile');
+    if (param === '1') {
+      localStorage.setItem('muse-force-mobile', '1');
+      setIsMobile(true);
+      params.delete('mobile');
+      window.history.replaceState(null, '', window.location.pathname + (params.toString() ? `?${params}` : ''));
+      return;
+    }
+    if (param === '0') {
+      localStorage.setItem('muse-force-mobile', '0');
+      setIsMobile(false);
+      params.delete('mobile');
+      window.history.replaceState(null, '', window.location.pathname + (params.toString() ? `?${params}` : ''));
+      return;
+    }
+    // No forced setting: follow real viewport
+    if (localStorage.getItem('muse-force-mobile')) return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Dark mode + forced mobile class sync to <html>
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.classList.toggle('force-mobile', isMobile && window.innerWidth >= 768);
+  }, [isDarkMode, isMobile]);
+
+  const toggleDarkMode = useCallback(() => setIsDarkMode(prev => !prev), []);
+
+  // Load initial data from API
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [userData, postsData, exploreData, messagesData, bookmarksData] = await Promise.all([
+          api.getUser(),
+          api.getPosts(),
+          api.getExploreCards(),
+          api.getMessages(),
+          api.getBookmarks(),
+        ]);
+        setUser(userData);
+        setPosts(postsData);
+        setExploreCards(exploreData);
+        setMessages(messagesData);
+        setBookmarks(bookmarksData);
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        showToast('Failed to load data. Please refresh.', 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const refreshPosts = useCallback(async () => {
+    try {
+      const data = await api.getPosts();
+      setPosts(data);
+    } catch (err) {
+      console.error('Failed to refresh posts:', err);
+    }
+  }, []);
+
+  const toggleLike = useCallback(async (postId: string) => {
+    try {
+      const updated = await api.toggleLike(postId);
+      setPosts(prev => prev.map(p => p.id === postId ? updated : p));
+      if (selectedPost?.id === postId) {
+        setSelectedPost(updated);
+      }
+    } catch (err) {
+      showToast('Failed to update like', 'error');
+    }
+  }, [selectedPost, showToast]);
+
+  const toggleSave = useCallback((postId: string) => {
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, isSaved: !p.isSaved } : p));
+    if (selectedPost?.id === postId) {
+      setSelectedPost(prev => prev ? { ...prev, isSaved: !prev.isSaved } : null);
+    }
+  }, [selectedPost]);
+
+  const publishPost = useCallback(async (data: { title: string; content?: string; imageUrl?: string; category: string; tags: string[] }) => {
+    try {
+      const newPost = await api.createPost(data);
+      setPosts(prev => [newPost, ...prev]);
+      setUser(prev => prev ? { ...prev, postsCount: prev.postsCount + 1 } : prev);
+      setCurrentTab('discovery');
+      showToast('Post published!', 'success');
+    } catch (err) {
+      showToast('Failed to publish post', 'error');
+      throw err;
+    }
+  }, [showToast]);
+
+  const sendMessage = useCallback(async (text: string) => {
+    try {
+      const userMsg = await api.sendMessage(text);
+      setMessages(prev => [...prev, userMsg]);
+      setIsReplying(true);
+
+      try {
+        const { reply } = await api.chatReply(CREATOR_ELENA_RIVERA, text);
+        const savedReply = await api.saveReply(reply || "Thanks for reaching out!");
+        setMessages(prev => [...prev, savedReply]);
+      } catch {
+        // Fallback if AI is not configured
+        const fallback = await api.saveReply("Thanks for your note! I'd love to chat more soon.");
+        setMessages(prev => [...prev, fallback]);
+      }
+    } catch (err) {
+      showToast('Failed to send message', 'error');
+    } finally {
+      setIsReplying(false);
+    }
+  }, [showToast]);
+
+  const removeBookmark = useCallback(async (id: string) => {
+    try {
+      await api.removeBookmark(id);
+      setBookmarks(prev => prev.filter(b => b.id !== id));
+      showToast('Bookmark removed', 'success');
+    } catch (err) {
+      showToast('Failed to remove bookmark', 'error');
+    }
+  }, [showToast]);
+
+  const updateUser = useCallback(async (data: Partial<User>) => {
+    try {
+      const updated = await api.updateUser(data);
+      setUser(updated);
+      showToast('Profile updated!', 'success');
+    } catch (err) {
+      showToast('Failed to update profile', 'error');
+    }
+  }, [showToast]);
+
+  const addComment = useCallback(async (postId: string, text: string) => {
+    try {
+      await api.addComment(postId, text);
+      showToast('Comment added!', 'success');
+    } catch (err) {
+      showToast('Failed to add comment', 'error');
+    }
+  }, [showToast]);
+
+  return (
+    <AppContext.Provider value={{
+      currentTab, setCurrentTab,
+      isDarkMode, toggleDarkMode,
+      isMobile,
+      user, posts, exploreCards, messages, bookmarks,
+      selectedPost, setSelectedPost,
+      isReplying, isLoading, toasts,
+      showToast, toggleLike, toggleSave, publishPost,
+      sendMessage, removeBookmark, updateUser, addComment, refreshPosts,
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+}

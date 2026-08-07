@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  muse:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - muse-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  muse-data:
+    driver: local

@@ -1,0 +1,6 @@
+{
+  "name": "Muse",
+  "description": "A modern, vibrant lifestyle and creative social discovery platform with glassmorphism design, bento feeds, swipe discovery, direct messaging, and AI content assistance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
