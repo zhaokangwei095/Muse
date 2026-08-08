@@ -1,12 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'muse.db');
-
-const _filename = fileURLToPath(import.meta.url);
-const _dirname = path.dirname(_filename);
 
 let db: Database.Database | null = null;
 
@@ -22,10 +18,10 @@ export function getDb(): Database.Database {
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
 
-    // Run schema - try both __dirname and src/db path for production builds
+    // Run schema - works in both dev (src/db) and production build (dist)
     const schemaCandidates = [
-      path.join(_dirname, 'schema.sql'),
       path.join(process.cwd(), 'src', 'db', 'schema.sql'),
+      path.join(process.cwd(), 'dist', 'schema.sql'),
     ];
     let schema = '';
     for (const p of schemaCandidates) {
