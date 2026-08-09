@@ -1,0 +1,27 @@
+# Dependencies & build outputs (rebuilt inside Docker image)
+node_modules/
+dist/
+build/
+
+# Local runtime data (SQLite DB, seeded on first start)
+data/
+
+# Git & IDE files
+.git/
+.gitignore
+.qoder/
+.idea/
+.vscode/
+
+# Env files (secrets configured via ModelScope env vars)
+.env*
+
+# Test screenshots & docs
+*.png
+*.log
+muse-product-prompt.md
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore

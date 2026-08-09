@@ -30,6 +30,23 @@ router.get('/', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/user/calendar - Inspiration activity calendar (last 14 weeks)
+router.get('/calendar', (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const days = Math.min(parseInt((req.query.days as string) || '98', 10), 365);
+    const rows = db.prepare(`
+      SELECT date, posts_count as postsCount, likes_count as likesCount
+      FROM activity
+      WHERE user_id = ? AND date >= date('now', ?)
+      ORDER BY date ASC
+    `).all(CURRENT_USER_ID, `-${days} days`);
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUT /api/user - Update current user profile
 router.put('/', (req: Request, res: Response) => {
   try {

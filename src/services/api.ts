@@ -43,6 +43,10 @@ export const api = {
   // User
   getUser: (): Promise<User> => request(API.USER),
 
+  // Inspiration calendar (last 14 weeks by default)
+  getCalendar: (days = 98): Promise<Array<{ date: string; postsCount: number; likesCount: number }>> =>
+    request(`${API.USER}/calendar?days=${days}`),
+
   updateUser: (data: Partial<User>): Promise<User> =>
     request(API.USER, { method: 'PUT', body: JSON.stringify(data) }),
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { PostItem, User } from '../types';
 import { POST_CATEGORIES } from '../constants';
 import { api } from '../services/api';
@@ -8,6 +9,38 @@ interface CreatePostViewProps {
   currentUser: User;
   onPublishPost: (data: { title: string; content?: string; imageUrl?: string; category: string; tags: string[] }) => Promise<void>;
   onCancel: () => void;
+}
+
+// Local gacha fallback when AI is not configured (keeps the draw always working)
+const FALLBACK_TITLES = [
+  '在光影之间，寻找安静的秩序',
+  '一杯咖啡的时间，收藏清晨的质感',
+  '极简，是对生活最温柔的克制',
+  '城市角落里被忽略的美学瞬间',
+  '把日子过成一首安静的诗',
+  '慢下来的艺术：质感生活手记',
+];
+const FALLBACK_TEXTS = [
+  '真正的美往往藏在日常的缝隙里。当我们放慢脚步，光线、材质与色彩的微妙关系便会自然浮现。愿这份微小的灵感，也能点亮你平凡的一天。',
+  '生活的质感不来自昂贵的堆砌，而来自用心的选择。每一个被认真对待的瞬间，都会在某一天回馈我们以温柔。',
+  '克制不是贫乏，而是把空间留给真正重要的事物。当我们学会删繁就简，美便以最纯粹的样子自然呈现。',
+];
+const FALLBACK_TAGS = ['#Inspiration', '#Aesthetic', '#Lifestyle', '#Minimalism', '#Muse', '#DailyMuse'];
+
+function localInspiration(prompt: string) {
+  const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+  let category = '生活';
+  if (/建筑|设计|空间|极简/.test(prompt)) category = '艺术设计';
+  else if (/AI|科技|智能|未来/.test(prompt)) category = 'AI科技';
+  else if (/旅行|城市|京都|海边|山/.test(prompt)) category = '旅行';
+  else if (/摄影|镜头|光影|胶片/.test(prompt)) category = '摄影';
+  const tags = [pick(FALLBACK_TAGS), pick(FALLBACK_TAGS), prompt.trim() ? `#${prompt.trim().slice(0, 8)}` : '#Muse'];
+  return {
+    title: pick(FALLBACK_TITLES),
+    text: pick(FALLBACK_TEXTS),
+    tags: Array.from(new Set(tags)).slice(0, 3),
+    suggestedCategory: category,
+  };
 }
 
 
@@ -27,30 +60,44 @@ export const CreatePostView: React.FC<CreatePostViewProps> = ({
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
-  const [showAiModal, setShowAiModal] = useState(false);
+  // Gacha modal opens automatically when entering the create page
+  const [showAiModal, setShowAiModal] = useState(true);
+  const [gachaPhase, setGachaPhase] = useState<'input' | 'drawing' | 'result'>('input');
+  const [drawnCard, setDrawnCard] = useState<{ title: string; text: string; tags: string[]; suggestedCategory: string } | null>(null);
 
   const handleGenerateInspiration = async () => {
     setIsGenerating(true);
+    setGachaPhase('drawing');
+    const minDelay = new Promise((r) => setTimeout(r, 1500));
     try {
-      const res = await fetch('/api/ai/generate-inspiration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: aiPrompt || title || 'A aesthetic post about architecture, studio art, or calm lifestyle.' }),
-      });
-      const data = await res.json();
-      if (data.title) setTitle(data.title);
-      if (data.text) setContent(data.text);
-      if (data.tags && Array.isArray(data.tags)) setTagsInput(data.tags.join(' '));
-      if (data.suggestedCategory && POST_CATEGORIES.includes(data.suggestedCategory as any)) {
-        setCategory(data.suggestedCategory);
+      let data: { title: string; text: string; tags: string[]; suggestedCategory: string };
+      try {
+        data = await api.generateInspiration(aiPrompt || title || 'A aesthetic post about architecture, studio art, or calm lifestyle.');
+        if (!data.title) throw new Error('empty');
+      } catch {
+        // AI unavailable: local gacha fallback keeps the experience intact
+        await new Promise((r) => setTimeout(r, 300));
+        data = localInspiration(aiPrompt || title);
       }
-      setShowAiModal(false);
-    } catch (err) {
-      console.error(err);
-      showToast('AI generation failed. Please try again.', 'error');
+      await minDelay;
+      setDrawnCard(data);
+      setGachaPhase('result');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const applyDrawnCard = () => {
+    if (!drawnCard) return;
+    setTitle(drawnCard.title);
+    setContent(drawnCard.text);
+    setTagsInput(drawnCard.tags.join(' '));
+    if (POST_CATEGORIES.includes(drawnCard.suggestedCategory as any)) {
+      setCategory(drawnCard.suggestedCategory);
+    }
+    setShowAiModal(false);
+    setGachaPhase('input');
+    showToast('灵感卡已填入，继续完善你的帖子吧', 'success');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,11 +135,11 @@ export const CreatePostView: React.FC<CreatePostViewProps> = ({
         </div>
 
         <button
-          onClick={() => setShowAiModal(true)}
+          onClick={() => { setShowAiModal(true); setGachaPhase('input'); }}
           className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-[#2170e4] text-white text-xs font-bold shadow-md hover:opacity-90 active:scale-95 transition-all"
         >
-          <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-          <span>AI Muse</span>
+          <span className="material-symbols-outlined text-[18px]">casino</span>
+          <span>灵感抽卡</span>
         </button>
       </div>
 
@@ -202,68 +249,133 @@ export const CreatePostView: React.FC<CreatePostViewProps> = ({
         </div>
       </form>
 
-      {/* AI Inspiration Modal */}
-      {showAiModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-white/60 dark:border-white/20">
-            <button
-              onClick={() => setShowAiModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/50 text-[#424754] dark:text-gray-200 transition-colors"
+      {/* Gacha Inspiration Modal */}
+      <AnimatePresence>
+        {showAiModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 20 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              className="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-white/60 dark:border-white/20"
             >
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-
-            <div className="flex items-center gap-2 mb-4 text-[#0058be]">
-              <span className="material-symbols-outlined text-[28px]">auto_awesome</span>
-              <h3 className="font-headline text-xl font-bold text-[#0b1c30] dark:text-white">
-                AI Muse Inspiration Generator
-              </h3>
-            </div>
-
-            <p className="text-xs text-[#424754] dark:text-gray-300 mb-4">
-              Enter a theme or idea, and Muse AI will draft a compelling title, text, and hashtags for your post.
-            </p>
-
-            <input
-              type="text"
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="e.g., Morning coffee in Kyoto, Scandinavian interior design..."
-              className="w-full bg-white/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[#0b1c30] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0058be] mb-6"
-            />
-
-            <div className="flex justify-end gap-3">
               <button
-                type="button"
-                onClick={() => setShowAiModal(false)}
-                className="px-5 py-2 rounded-full text-xs font-semibold text-[#424754]"
+                onClick={() => { setShowAiModal(false); setGachaPhase('input'); }}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/50 text-[#424754] dark:text-gray-200 transition-colors z-10"
               >
-                Cancel
+                <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
-              <button
-                type="button"
-                onClick={handleGenerateInspiration}
-                disabled={isGenerating}
-                className="px-6 py-2.5 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-600 to-[#2170e4] text-white shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <span className="material-symbols-outlined text-[16px] animate-spin">
-                      sync
+
+              {/* Phase: input */}
+              {gachaPhase === 'input' && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 text-[#0058be]">
+                    <span className="material-symbols-outlined text-[28px]">casino</span>
+                    <h3 className="font-headline text-xl font-bold text-[#0b1c30] dark:text-white">
+                      灵感抽卡
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#424754] dark:text-gray-300 mb-4">
+                    写下一句话主题，抽一张灵感卡 —— AI 会为你完善标题、正文与标签
+                  </p>
+
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="例如：京都的清晨咖啡、极简书房、海边的日落..."
+                    className="w-full bg-white/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[#0b1c30] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0058be] mb-6"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleGenerateInspiration(); }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateInspiration}
+                    className="w-full py-3 rounded-2xl text-sm font-bold bg-gradient-to-r from-purple-600 to-[#2170e4] text-white shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">stylus_note</span>
+                    <span>开始抽卡</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Phase: drawing animation */}
+              {gachaPhase === 'drawing' && (
+                <div className="py-10 flex flex-col items-center">
+                  <motion.div
+                    animate={{ rotateY: [0, 180, 360], scale: [1, 1.08, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-28 h-40 rounded-2xl bg-gradient-to-tr from-purple-600 via-[#2170e4] to-[#0058be] shadow-2xl flex items-center justify-center mb-6"
+                    style={{ transformStyle: 'preserve-3d' }}
+                  >
+                    <span className="material-symbols-outlined text-[44px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      auto_awesome
                     </span>
-                    <span>Inspiring...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[16px]">sparkles</span>
-                    <span>Generate</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                  </motion.div>
+                  <p className="font-headline font-bold text-base text-[#0b1c30] dark:text-white animate-pulse">
+                    灵感正在凝聚...
+                  </p>
+                  <p className="text-xs text-[#424754] dark:text-gray-300 mt-1">AI 为你完善文案中</p>
+                </div>
+              )}
+
+              {/* Phase: result card reveal */}
+              {gachaPhase === 'result' && drawnCard && (
+                <motion.div
+                  initial={{ rotateY: 90, opacity: 0, scale: 0.9 }}
+                  animate={{ rotateY: 0, opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                >
+                  <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-800 dark:to-slate-700/70 border-2 border-[#2170e4]/40 p-5 mb-5 shadow-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-[#2170e4] text-white text-[10px] font-bold">
+                        ✦ 灵感卡 SSR
+                      </span>
+                      <span className="text-[10px] text-[#0058be] dark:text-[#adc6ff] font-semibold">{drawnCard.suggestedCategory}</span>
+                    </div>
+                    <h4 className="font-headline text-lg font-bold text-[#0b1c30] dark:text-white leading-snug mb-2">
+                      {drawnCard.title}
+                    </h4>
+                    <p className="text-xs text-[#424754] dark:text-gray-300 leading-relaxed line-clamp-4 mb-3">
+                      {drawnCard.text}
+                    </p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {drawnCard.tags.map((t, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full bg-[#eff4ff] dark:bg-slate-700 text-[#0058be] dark:text-[#adc6ff] text-[10px] font-medium">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setGachaPhase('input'); setDrawnCard(null); }}
+                      className="flex-1 py-2.5 rounded-full text-xs font-bold text-[#424754] dark:text-gray-300 bg-white/60 dark:bg-slate-800 hover:bg-white transition-colors"
+                    >
+                      再抽一张
+                    </button>
+                    <button
+                      type="button"
+                      onClick={applyDrawnCard}
+                      className="flex-1 py-2.5 rounded-full text-xs font-bold bg-gradient-to-r from-[#2170e4] to-[#0058be] text-white shadow-md active:scale-95 transition-all"
+                    >
+                      使用这张卡
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

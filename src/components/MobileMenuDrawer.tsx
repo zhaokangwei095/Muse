@@ -17,7 +17,7 @@ const MENU_ITEMS: Array<{ tab: NavTab; icon: string; label: string; desc: string
   { tab: 'bookmarks', icon: 'favorite', label: '关注', desc: '收藏的帖子与灵感' },
   { tab: 'messages', icon: 'chat_bubble', label: '聊天', desc: '与创作者对话' },
   { tab: 'profile', icon: 'person', label: '我', desc: '个人主页与作品' },
-  { tab: 'create', icon: 'add_circle', label: '发布灵感', desc: 'AI 辅助创作' },
+  { tab: 'create', icon: 'casino', label: '灵感抽卡', desc: '一句话抽卡，AI 完善文案' },
   { tab: 'settings', icon: 'settings', label: '设置', desc: '主题与偏好' },
 ];
 

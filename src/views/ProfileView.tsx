@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, PostItem } from '../types';
 import { useApp } from '../context/AppContext';
+import { InspirationCalendar } from '../components/InspirationCalendar';
 
 interface ProfileViewProps {
   user: User;
@@ -122,6 +123,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Inspiration Calendar - GitHub style activity heatmap */}
+      <InspirationCalendar />
 
       {/* Tabs */}
       <div className="flex justify-center border-b border-slate-200 dark:border-slate-700 mb-8">

@@ -116,6 +116,10 @@ router.post('/', (req: Request, res: Response) => {
     // Increment user posts count
     db.prepare('UPDATE users SET posts_count = posts_count + 1 WHERE id = ?').run(authorId);
 
+    // Record today's inspiration activity for the calendar
+    db.prepare('INSERT OR IGNORE INTO activity (date, user_id, posts_count, likes_count) VALUES (date(\'now\'), ?, 0, 0)').run(authorId);
+    db.prepare('UPDATE activity SET posts_count = posts_count + 1 WHERE date = date(\'now\') AND user_id = ?').run(authorId);
+
     // Fetch and return the new post
     const row = db.prepare(POST_QUERY + ' WHERE p.id = ?').get(id) as any;
     const post = parsePostRow(row);
@@ -135,12 +139,24 @@ router.post('/:id/like', (req: Request, res: Response) => {
 
     const existing = db.prepare('SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?').get(userId, postId);
 
+    // Find the post's creation date to attribute harvested likes on the calendar
+    const postRow = db.prepare('SELECT substr(created_at, 1, 10) as day, author_id FROM posts WHERE id = ?').get(postId) as any;
+    const activityDay = postRow?.day;
+    const activityUser = postRow?.author_id;
+
     if (existing) {
       db.prepare('DELETE FROM likes WHERE user_id = ? AND post_id = ?').run(userId, postId);
       db.prepare('UPDATE posts SET likes_count = MAX(0, likes_count - 1) WHERE id = ?').run(postId);
+      if (activityDay && activityUser) {
+        db.prepare('UPDATE activity SET likes_count = MAX(0, likes_count - 1) WHERE date = ? AND user_id = ?').run(activityDay, activityUser);
+      }
     } else {
       db.prepare('INSERT INTO likes (user_id, post_id) VALUES (?, ?)').run(userId, postId);
       db.prepare('UPDATE posts SET likes_count = likes_count + 1 WHERE id = ?').run(postId);
+      if (activityDay && activityUser) {
+        db.prepare('INSERT OR IGNORE INTO activity (date, user_id, posts_count, likes_count) VALUES (?, ?, 0, 0)').run(activityDay, activityUser);
+        db.prepare('UPDATE activity SET likes_count = likes_count + 1 WHERE date = ? AND user_id = ?').run(activityDay, activityUser);
+      }
     }
 
     const row = db.prepare(POST_QUERY + ' WHERE p.id = ?').get(postId) as any;

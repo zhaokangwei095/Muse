@@ -73,6 +73,16 @@ CREATE TABLE IF NOT EXISTS comments (
   FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 );
 
+-- Daily inspiration activity for the GitHub-style calendar
+CREATE TABLE IF NOT EXISTS activity (
+  date TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  posts_count INTEGER DEFAULT 0,
+  likes_count INTEGER DEFAULT 0,
+  PRIMARY KEY (date, user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category);
@@ -80,3 +90,4 @@ CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
 CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_activity_user ON activity(user_id);

@@ -1,4 +1,5 @@
 import { getDb } from './database';
+import { CURRENT_USER_ID } from '../constants';
 import {
   CURRENT_USER,
   CREATOR_ELENA_RIVERA,
@@ -10,6 +11,9 @@ import {
 
 export function seedDatabase(): void {
   const db = getDb();
+
+  // Seed inspiration calendar history independently (works on existing DBs too)
+  seedActivityHistory(db);
 
   // Check if already seeded
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
@@ -115,4 +119,47 @@ export function seedDatabase(): void {
   insertComment.run('comment_2', 'post_3', 'Community Member', 'The photography in this piece is so calming.');
 
   console.log('Database seeded successfully!');
+}
+
+// Deterministic pseudo-random generator so the calendar history is stable
+function lcg(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+}
+
+function seedActivityHistory(db: ReturnType<typeof getDb>): void {
+  const count = db.prepare('SELECT COUNT(*) as count FROM activity').get() as any;
+  if (count.count > 0) return;
+
+  console.log('Seeding inspiration calendar history...');
+  const rand = lcg(20260806);
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO activity (date, user_id, posts_count, likes_count)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  const today = new Date();
+  // 14 weeks of history, excluding today (real data accumulates there)
+  for (let i = 98; i >= 1; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const weekday = d.getDay();
+    const isWeekend = weekday === 0 || weekday === 6;
+
+    // Creative rhythm: active ~60% of days, more on weekends, streaks
+    const activeChance = isWeekend ? 0.75 : 0.55;
+    if (rand() > activeChance) {
+      insert.run(dateStr, CURRENT_USER_ID, 0, 0);
+      continue;
+    }
+
+    const posts = isWeekend ? Math.floor(rand() * 3) : Math.floor(rand() * 2);
+    const baseLikes = Math.floor(rand() * 18);
+    const bonus = posts > 0 ? Math.floor(rand() * 14) : 0;
+    insert.run(dateStr, CURRENT_USER_ID, posts, baseLikes + bonus);
+  }
 }
