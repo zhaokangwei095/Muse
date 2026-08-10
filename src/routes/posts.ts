@@ -86,6 +86,22 @@ router.get('/explore', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/posts/following - Posts from followed authors
+router.get('/following', (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const query = POST_QUERY + `
+      WHERE p.author_id IN (SELECT target_id FROM follows WHERE user_id = ?)
+      ORDER BY p.created_at DESC
+    `;
+    const rows = db.prepare(query).all(CURRENT_USER_ID);
+    const posts = rows.map((row: any) => parsePostRow(row));
+    res.json(posts);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /api/posts - Create a new post
 router.post('/', (req: Request, res: Response) => {
   try {
@@ -169,24 +185,24 @@ router.post('/:id/like', (req: Request, res: Response) => {
   }
 });
 
-// POST /api/posts/:id/comments - Add a comment
+// POST /api/posts/:id/comments - Add a comment (optionally replying to someone)
 router.post('/:id/comments', (req: Request, res: Response) => {
   try {
     const db = getDb();
     const postId = req.params.id;
-    const { text } = req.body;
+    const { text, replyTo = '' } = req.body;
 
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'Comment text is required' });
     }
 
     const commentId = `comment_${Date.now()}`;
-    db.prepare('INSERT INTO comments (id, post_id, author_name, text) VALUES (?, ?, ?, ?)').run(
-      commentId, postId, 'Community Member', text.trim()
+    db.prepare('INSERT INTO comments (id, post_id, author_name, text, reply_to) VALUES (?, ?, ?, ?, ?)').run(
+      commentId, postId, 'Community Member', text.trim(), replyTo
     );
     db.prepare('UPDATE posts SET comments_count = comments_count + 1 WHERE id = ?').run(postId);
 
-    res.json({ id: commentId, text: text.trim(), authorName: 'Community Member', createdAt: new Date().toISOString() });
+    res.json({ id: commentId, text: text.trim(), authorName: 'Community Member', replyTo, createdAt: new Date().toISOString() });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -198,6 +214,21 @@ router.get('/:id/comments', (req: Request, res: Response) => {
     const db = getDb();
     const comments = db.prepare('SELECT * FROM comments WHERE post_id = ? ORDER BY created_at DESC').all(req.params.id);
     res.json(comments);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/posts/:id/comments/:commentId - Delete a comment
+router.delete('/:id/comments/:commentId', (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const { id, commentId } = req.params;
+    const deleted = db.prepare('DELETE FROM comments WHERE id = ? AND post_id = ?').run(commentId, id);
+    if (deleted.changes > 0) {
+      db.prepare('UPDATE posts SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').run(id);
+    }
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

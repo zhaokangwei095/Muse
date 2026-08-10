@@ -1,4 +1,4 @@
-import { PostItem, User, DirectMessage, BookmarkCollection, Conversation } from '../types';
+import { PostItem, User, DirectMessage, BookmarkCollection, Conversation, AppNotification } from '../types';
 import { API } from '../constants';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -24,6 +24,9 @@ export const api = {
   // Get explore cards
   getExploreCards: (): Promise<PostItem[]> => request(`${API.POSTS}/explore`),
 
+  // Get posts from followed authors
+  getFollowingPosts: (): Promise<PostItem[]> => request(API.POSTS_FOLLOWING),
+
   // Create a post
   createPost: (data: { title: string; content?: string; imageUrl?: string; category: string; tags: string[] }): Promise<PostItem> =>
     request(API.POSTS, { method: 'POST', body: JSON.stringify(data) }),
@@ -37,8 +40,12 @@ export const api = {
     request(API.POST_COMMENTS(postId)),
 
   // Add comment
-  addComment: (postId: string, text: string): Promise<{ id: string; text: string; authorName: string }> =>
-    request(API.POST_COMMENTS(postId), { method: 'POST', body: JSON.stringify({ text }) }),
+  addComment: (postId: string, text: string, replyTo = ''): Promise<{ id: string; text: string; authorName: string; replyTo: string }> =>
+    request(API.POST_COMMENTS(postId), { method: 'POST', body: JSON.stringify({ text, replyTo }) }),
+
+  // Delete comment
+  deleteComment: (postId: string, commentId: string): Promise<{ success: boolean }> =>
+    request(API.DELETE_COMMENT(postId, commentId), { method: 'DELETE' }),
 
   // User
   getUser: (): Promise<User> => request(API.USER),
@@ -50,6 +57,18 @@ export const api = {
   updateUser: (data: Partial<User>): Promise<User> =>
     request(API.USER, { method: 'PUT', body: JSON.stringify(data) }),
 
+  // Follow / following
+  getFollowing: (): Promise<string[]> => request(API.FOLLOWING),
+
+  toggleFollow: (targetId: string): Promise<{ isFollowing: boolean }> =>
+    request(API.FOLLOW(targetId), { method: 'POST' }),
+
+  // Notifications
+  getNotifications: (): Promise<AppNotification[]> => request(API.NOTIFICATIONS),
+
+  markNotificationsRead: (): Promise<{ success: boolean }> =>
+    request(`${API.NOTIFICATIONS}/read-all`, { method: 'POST' }),
+
   // Messages
   getConversations: (): Promise<Conversation[]> => request(API.CONVERSATIONS),
 
@@ -59,8 +78,8 @@ export const api = {
   sendMessage: (text: string, image?: string, conversationId = 'c_elena'): Promise<DirectMessage> =>
     request(API.MESSAGES, { method: 'POST', body: JSON.stringify({ text, image, conversationId }) }),
 
-  saveReply: (text: string, conversationId = 'c_elena'): Promise<DirectMessage> =>
-    request(`${API.MESSAGES}/reply`, { method: 'POST', body: JSON.stringify({ text, conversationId }) }),
+  saveReply: (text: string, conversationId = 'c_elena', personaName = ''): Promise<DirectMessage> =>
+    request(`${API.MESSAGES}/reply`, { method: 'POST', body: JSON.stringify({ text, conversationId, personaName }) }),
 
   // Bookmarks
   getBookmarks: (): Promise<BookmarkCollection[]> => request(API.BOOKMARKS),

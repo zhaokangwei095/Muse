@@ -12,6 +12,7 @@ import {
   buildPersonalNote,
   UserStats,
 } from '../data/colorPsychology';
+import { saveToAlbum } from '../components/CardAlbumModal';
 
 interface CreatePostViewProps {
   currentUser: User;
@@ -160,6 +161,22 @@ export const CreatePostView: React.FC<CreatePostViewProps> = ({
     setShowRitual(false);
     resetRitual();
     showToast('灵感卡已填入，继续完善你的帖子吧', 'success');
+  };
+
+  const handleSaveToAlbum = () => {
+    if (!drawnCard || !selectedColor) return;
+    saveToAlbum({
+      id: `album_${Date.now()}`,
+      colorId: selectedColor.id,
+      colorName: selectedColor.name,
+      gradient: selectedColor.gradient,
+      title: drawnCard.title,
+      text: drawnCard.text,
+      tags: drawnCard.tags,
+      category: drawnCard.suggestedCategory,
+      savedAt: new Date().toISOString(),
+    });
+    showToast('已存入灵感卡册 ✨', 'success');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -590,6 +607,14 @@ export const CreatePostView: React.FC<CreatePostViewProps> = ({
                       className="flex-1 py-2.5 rounded-full text-xs font-bold text-[#424754] dark:text-gray-300 bg-white/60 dark:bg-slate-800 hover:bg-white transition-colors"
                     >
                       再抽一张
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveToAlbum}
+                      className="flex-1 py-2.5 rounded-full text-xs font-bold text-[#7c3aed] bg-purple-100/70 dark:bg-purple-900/30 hover:bg-purple-100 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">collections_bookmark</span>
+                      存入卡册
                     </button>
                     <button
                       type="button"

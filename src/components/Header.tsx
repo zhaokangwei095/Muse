@@ -9,6 +9,8 @@ interface HeaderProps {
   onOpenSettings: () => void;
   isMobile: boolean;
   onOpenMenu: () => void;
+  unreadCount: number;
+  onOpenNotifications: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,7 +21,27 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   isMobile,
   onOpenMenu,
+  unreadCount,
+  onOpenNotifications,
 }) => {
+  const bellButton = (
+    <button
+      onClick={onOpenNotifications}
+      className="relative text-[#0058be] dark:text-[#adc6ff] p-1 hover:opacity-80 active:scale-95 transition-all"
+      aria-label="Notifications"
+    >
+      <span className="material-symbols-outlined text-[22px]"
+        style={{ fontVariationSettings: unreadCount > 0 ? "'FILL' 1" : "'FILL' 0" }}>
+        notifications
+      </span>
+      {unreadCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border border-white dark:border-[#0b1c30]">
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </span>
+      )}
+    </button>
+  );
+
   if (isMobile) {
     return (
       <header className="fixed top-0 left-0 w-full z-50 bg-white/75 dark:bg-[#0b1c30]/75 backdrop-blur-xl border-b border-white/40 dark:border-white/10 shadow-xs flex items-center justify-between px-6 h-16 transition-colors">
@@ -39,6 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
         </h1>
 
         <div className="flex items-center gap-2">
+          {bellButton}
           <button
             onClick={onToggleDarkMode}
             className="text-[#0058be] dark:text-[#adc6ff] p-1 hover:opacity-80 active:scale-95"
@@ -155,6 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {bellButton}
           <button
             onClick={onToggleDarkMode}
             className="p-2 text-[#0058be] dark:text-[#adc6ff] hover:bg-white/40 dark:hover:bg-white/10 rounded-full transition-all active:scale-95"

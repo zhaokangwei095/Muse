@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { PostItem } from '../types';
 import { api } from '../services/api';
+import { FALLBACK_IMG } from '../constants';
 import { useApp } from '../context/AppContext';
 
 interface ArticleDetailViewProps {
@@ -17,25 +18,54 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
   onToggleLike,
   onToggleSave,
 }) => {
-  const { showToast, addComment } = useApp();
+  const { showToast, addComment, user, followedIds, toggleFollow } = useApp();
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Array<{ id: string; text: string; author_name: string }>>([]);
+  const [replyTo, setReplyTo] = useState('');
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
+  const [comments, setComments] = useState<Array<{ id: string; text: string; author_name: string; reply_to?: string }>>([]);
+
+  const isFollowing = followedIds.includes(post.author.id);
+  const isOwnPost = user?.name === post.author.name;
 
   useEffect(() => {
-    api.getComments(post.id).then(setComments).catch(() => {});
+    api.getComments(post.id).then(setComments as any).catch(() => {});
+    setReplyTo('');
   }, [post.id]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     try {
-      const result = await api.addComment(post.id, commentText.trim());
-      setComments(prev => [{ id: result.id, text: result.text, author_name: result.authorName }, ...prev]);
+      const result = await api.addComment(post.id, commentText.trim(), replyTo);
+      setComments(prev => [{ id: result.id, text: result.text, author_name: result.authorName, reply_to: result.replyTo }, ...prev]);
       setCommentText('');
+      setReplyTo('');
       showToast('Comment added!', 'success');
     } catch {
       showToast('Failed to add comment', 'error');
     }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await api.deleteComment(post.id, commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+      showToast('评论已删除', 'success');
+    } catch {
+      showToast('删除失败', 'error');
+    }
+  };
+
+  const toggleCommentLike = (commentId: string) => {
+    setLikedComments(prev => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId); else next.add(commentId);
+      return next;
+    });
+  };
+
+  const handleFollow = async () => {
+    await toggleFollow(post.author.id);
   };
 
   return (
@@ -65,6 +95,7 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
             'https://lh3.googleusercontent.com/aida-public/AB6AXuDBN1k5xBvWZV7BDNgQ8dLu9v6FoU1C9TQ2bZYMJT-F93-aWNboYPx2eDoPszx3kFPrByyO4YeVXb3jXYJHzen0QvPvJhKvYjfPeEQEbY4cEc5-GWuLxgWEwWCCR0VQHP21yOJKkRqvfPd6bEURUKzTbMglYYq4fpWmSc34-8xu06WnTKGFcSZGM_QhWkRL_jjxTTrCNe01vbxHTiw2S9aDXS5QVdH9Qn5jy1T6WPUGJcNx90cn8ovyWA'
           }
           alt={post.title}
+          onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0b1c30]/90 via-[#0b1c30]/30 to-transparent flex flex-col justify-end p-6 md:p-10">
@@ -100,8 +131,18 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
           </div>
         </div>
 
-        <button className="px-5 py-2 rounded-full bg-[#0058be] text-white text-xs font-bold shadow-md hover:bg-[#2170e4] active:scale-95 transition-all">
-          Follow
+        <button
+          onClick={handleFollow}
+          disabled={isOwnPost}
+          className={`px-5 py-2 rounded-full text-xs font-bold shadow-md active:scale-95 transition-all ${
+            isOwnPost
+              ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-default'
+              : isFollowing
+              ? 'bg-white/70 dark:bg-slate-700 text-[#424754] dark:text-gray-300 border border-slate-200 dark:border-slate-600'
+              : 'bg-[#0058be] text-white hover:bg-[#2170e4]'
+          }`}
+        >
+          {isOwnPost ? '这是你的帖子' : isFollowing ? '已关注 ✓' : 'Follow'}
         </button>
       </motion.div>
 
@@ -218,37 +259,79 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
           Community Reactions ({comments.length})
         </h3>
 
-        <form onSubmit={handleAddComment} className="flex gap-2 mb-6">
-          <input
-            type="text"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Share your thoughts..."
-            className="flex-1 bg-white/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-xs text-[#0b1c30] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0058be]"
-          />
-          <button
-            type="submit"
-            className="px-5 py-2 rounded-full bg-[#0058be] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
-          >
-            Comment
-          </button>
+        <form onSubmit={handleAddComment} className="mb-4">
+          {replyTo && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-xl bg-[#eff4ff] dark:bg-[#2170e4]/15 text-[11px] text-[#0058be] dark:text-[#adc6ff]">
+              <span>回复 @{replyTo}</span>
+              <button type="button" onClick={() => setReplyTo('')} className="ml-auto p-0.5 rounded-full hover:bg-white/60">
+                <span className="material-symbols-outlined text-[14px]">close</span>
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder={replyTo ? `回复 @${replyTo}...` : 'Share your thoughts...'}
+              className="flex-1 bg-white/70 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 text-xs text-[#0b1c30] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0058be]"
+            />
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-full bg-[#0058be] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+            >
+              Comment
+            </button>
+          </div>
         </form>
 
         <div className="space-y-3">
-          {comments.map((c) => (
-            <div
-              key={c.id}
-              className="p-3.5 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 text-xs text-[#0b1c30] dark:text-gray-200"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-[#0058be] dark:text-[#adc6ff]">
-                  {c.author_name || 'Community Member'}
-                </span>
-                <span className="text-[10px] text-slate-400">Just now</span>
+          {comments.map((c) => {
+            const isOwn = c.author_name === 'Community Member' || c.author_name === user?.name;
+            const isLiked = likedComments.has(c.id);
+            return (
+              <div
+                key={c.id}
+                className="p-3.5 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 text-xs text-[#0b1c30] dark:text-gray-200"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-[#0058be] dark:text-[#adc6ff]">
+                    {c.author_name || 'Community Member'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">Just now</span>
+                  <div className="ml-auto flex items-center gap-1">
+                    <button
+                      onClick={() => toggleCommentLike(c.id)}
+                      className={`flex items-center gap-0.5 p-1 rounded-full transition-colors ${isLiked ? 'text-[#a43073]' : 'text-slate-400 hover:text-[#a43073]'}`}
+                      title="点赞评论"
+                    >
+                      <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: isLiked ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+                    </button>
+                    <button
+                      onClick={() => setReplyTo(c.author_name)}
+                      className="p-1 rounded-full text-slate-400 hover:text-[#0058be] transition-colors"
+                      title="回复"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">reply</span>
+                    </button>
+                    {isOwn && (
+                      <button
+                        onClick={() => handleDeleteComment(c.id)}
+                        className="p-1 rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                        title="删除"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">delete</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {c.reply_to && (
+                  <p className="text-[10px] text-[#0058be] dark:text-[#adc6ff] mb-0.5">回复 @{c.reply_to}</p>
+                )}
+                <p>{c.text}</p>
               </div>
-              <p>{c.text}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

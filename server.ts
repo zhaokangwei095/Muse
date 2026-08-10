@@ -14,6 +14,7 @@ import messagesRouter from './src/routes/messages';
 import conversationsRouter from './src/routes/conversations';
 import usersRouter from './src/routes/users';
 import bookmarksRouter from './src/routes/bookmarks';
+import notificationsRouter from './src/routes/notifications';
 import aiRouter from './src/routes/ai';
 import { mobilePreviewHandler } from './src/routes/mobilePreview';
 
@@ -62,6 +63,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/user', usersRouter);
 app.use('/api/bookmarks', bookmarksRouter);
+app.use('/api/notifications', notificationsRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
 
 // Initialize database and seed data

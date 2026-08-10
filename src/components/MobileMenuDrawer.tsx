@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NavTab, User } from '../types';
 import { InspirationCalendar } from './InspirationCalendar';
+import { useApp } from '../context/AppContext';
 
 interface MobileMenuDrawerProps {
   isOpen: boolean;
@@ -29,6 +30,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
   isDarkMode,
   onToggleDarkMode,
 }) => {
+  const { setCardAlbumOpen } = useApp();
+
   const handleTab = (tab: NavTab) => {
     onTabChange(tab);
     onClose();
@@ -101,6 +104,16 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
               {/* Menu Items */}
               <nav className="space-y-1 mt-2">
+                <button
+                  onClick={() => { setCardAlbumOpen(true); onClose(); }}
+                  className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition-all active:scale-[0.98] text-[#0b1c30] dark:text-gray-200 hover:bg-white/60 dark:hover:bg-white/10"
+                >
+                  <span className="material-symbols-outlined text-[22px]">collections_bookmark</span>
+                  <div className="min-w-0">
+                    <p className="text-sm leading-tight font-semibold">灵感卡册</p>
+                    <p className="text-[10px] text-[#424754] dark:text-gray-400 truncate">收集抽卡仪式里的心境卡</p>
+                  </div>
+                </button>
                 {MENU_ITEMS.map((item) => {
                   const isActive = currentTab === item.tab;
                   return (

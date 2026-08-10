@@ -8,6 +8,8 @@ import { Header } from './components/Header';
 import { BottomNavBar } from './components/BottomNavBar';
 import { EditProfileModal } from './components/EditProfileModal';
 import { MobileMenuDrawer } from './components/MobileMenuDrawer';
+import { NotificationsPanel } from './components/NotificationsPanel';
+import { CardAlbumModal } from './components/CardAlbumModal';
 
 import { DiscoveryFeedView } from './views/DiscoveryFeedView';
 import { ExploreSwipeView } from './views/ExploreSwipeView';
@@ -32,10 +34,45 @@ function AppContent() {
     isReplying, isLoading,
     toggleLike, toggleSave, publishPost,
     sendMessage, removeBookmark, updateUser,
+    unreadCount, refreshNotifications,
   } = useApp();
 
   const [isEditProfileOpen, setIsEditProfileOpen] = React.useState(false);
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const deepLinkHandled = React.useRef(false);
+
+  // Open a post + sync a shareable URL (/post/:id)
+  const openPost = React.useCallback((post: import('./types').PostItem) => {
+    setSelectedPost(post);
+    try { window.history.pushState({ postId: post.id }, '', `/post/${post.id}`); } catch { /* preview iframes may block it */ }
+  }, [setSelectedPost]);
+
+  const closePost = React.useCallback(() => {
+    setSelectedPost(null);
+    try {
+      if (window.location.pathname.startsWith('/post/')) {
+        window.history.pushState(null, '', '/');
+      }
+    } catch { /* ignore */ }
+  }, [setSelectedPost]);
+
+  // Deep link: /post/:id opens that article directly (share landing page)
+  React.useEffect(() => {
+    if (deepLinkHandled.current || posts.length === 0) return;
+    const match = window.location.pathname.match(/^\/post\/([\w-]+)/);
+    if (match) {
+      const post = posts.find((p) => p.id === match[1]);
+      if (post) setSelectedPost(post);
+    }
+    deepLinkHandled.current = true;
+  }, [posts, setSelectedPost]);
+
+  // Open a post by id (used by notifications)
+  const openPostById = React.useCallback((postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (post) openPost(post);
+  }, [posts, openPost]);
 
   // Nav click: tapping the active Explore tab toggles feed/cards mode
   const handleNavTab = (tab: Parameters<typeof setCurrentTab>[0]) => {
@@ -78,6 +115,8 @@ function AppContent() {
         onOpenSettings={() => setCurrentTab('settings')}
         isMobile={isMobile}
         onOpenMenu={() => setIsMenuOpen(true)}
+        unreadCount={unreadCount}
+        onOpenNotifications={() => { setIsNotificationsOpen(true); refreshNotifications(); }}
       />
 
       <main>
@@ -92,7 +131,7 @@ function AppContent() {
             {selectedPost ? (
           <ArticleDetailView
             post={selectedPost}
-            onBack={() => setSelectedPost(null)}
+            onBack={closePost}
             onToggleLike={toggleLike}
             onToggleSave={toggleSave}
           />
@@ -101,7 +140,7 @@ function AppContent() {
             {currentTab === 'discovery' && (
               <DiscoveryFeedView
                 posts={posts}
-                onSelectPost={(post) => setSelectedPost(post)}
+                onSelectPost={openPost}
                 onToggleLike={toggleLike}
                 onToggleSave={toggleSave}
               />
@@ -113,7 +152,7 @@ function AppContent() {
                   cards={exploreCards}
                   mode={exploreMode}
                   onModeChange={setExploreMode}
-                  onSelectPost={(post) => setSelectedPost(post)}
+                  onSelectPost={openPost}
                   onToggleLike={toggleLike}
                   onToggleSave={toggleSave}
                   onOpenMessagesWithAuthor={() => setCurrentTab('messages')}
@@ -121,7 +160,7 @@ function AppContent() {
               ) : (
                 <ExploreSwipeView
                   cards={exploreCards}
-                  onSelectPost={(post) => setSelectedPost(post)}
+                  onSelectPost={openPost}
                   onOpenMessagesWithAuthor={() => setCurrentTab('messages')}
                 />
               )
@@ -141,9 +180,10 @@ function AppContent() {
                 bookmarks={bookmarks}
                 onSelectBookmark={(bm) => {
                   const matched = posts.find((p) => p.title.includes(bm.title) || p.category === bm.category);
-                  if (matched) setSelectedPost(matched);
+                  if (matched) openPost(matched);
                 }}
                 onRemoveBookmark={removeBookmark}
+                onSelectPost={openPost}
               />
             )}
             {currentTab === 'profile' && user && (
@@ -152,7 +192,7 @@ function AppContent() {
                 userPosts={posts.filter((p) => p.author.name === user.name)}
                 onOpenEditProfile={() => setIsEditProfileOpen(true)}
                 onOpenSettings={() => setCurrentTab('settings')}
-                onSelectPost={(post) => setSelectedPost(post)}
+                onSelectPost={openPost}
               />
             )}
             {currentTab === 'settings' && (
@@ -184,6 +224,16 @@ function AppContent() {
           onSave={(updatedUser) => updateUser(updatedUser)}
         />
       )}
+
+      {/* Notifications Center */}
+      <NotificationsPanel
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onOpenPost={openPostById}
+      />
+
+      {/* Inspiration Card Album */}
+      <CardAlbumModal />
 
       {/* Mobile Side Drawer Menu */}
       <MobileMenuDrawer

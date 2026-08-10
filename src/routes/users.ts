@@ -47,6 +47,35 @@ router.get('/calendar', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/user/following - List ids the current user follows
+router.get('/following', (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const rows = db.prepare('SELECT target_id FROM follows WHERE user_id = ?').all(CURRENT_USER_ID) as any[];
+    res.json(rows.map((r) => r.target_id));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/user/follow/:targetId - Toggle follow
+router.post('/follow/:targetId', (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const targetId = req.params.targetId;
+    const existing = db.prepare('SELECT 1 FROM follows WHERE user_id = ? AND target_id = ?').get(CURRENT_USER_ID, targetId);
+    if (existing) {
+      db.prepare('DELETE FROM follows WHERE user_id = ? AND target_id = ?').run(CURRENT_USER_ID, targetId);
+      res.json({ isFollowing: false });
+    } else {
+      db.prepare('INSERT INTO follows (user_id, target_id) VALUES (?, ?)').run(CURRENT_USER_ID, targetId);
+      res.json({ isFollowing: true });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PUT /api/user - Update current user profile
 router.put('/', (req: Request, res: Response) => {
   try {

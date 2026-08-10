@@ -43,9 +43,13 @@ export const ExploreSwipeView: React.FC<ExploreSwipeViewProps> = ({
 }) => {
   const [[currentIndex, direction], setPage] = useState<[number, number]>([0, 0]);
   const [lastAction, setLastAction] = useState<'like' | 'pass' | null>(null);
+  const [sessionLikes, setSessionLikes] = useState(0);
   // next mode: swipe either direction to browse forward
   // like mode: swipe right = like, swipe left = pass
   const [swipeMode, setSwipeMode] = useState<SwipeMode>('like');
+
+  // Deck is exhausted when the index passes the last card (no infinite loop)
+  const isExhausted = currentIndex >= cards.length;
 
   // Drag motion values live on the INNER card only,
   // so they never conflict with the OUTER enter/exit flight animation.
@@ -61,15 +65,23 @@ export const ExploreSwipeView: React.FC<ExploreSwipeViewProps> = ({
   const nextOpacity = useTransform(dragProgress, [0, 1], [0.5, 0.85]);
   const nextBadgeOpacity = useTransform(dragProgress, [0.15, 0.8], [0, 1]);
 
-  const currentCard = cards[currentIndex % cards.length];
-  const nextCard = cards[(currentIndex + 1) % cards.length];
+  const currentCard = cards[currentIndex];
+  const nextCard = cards[currentIndex + 1];
 
   const swipeTo = (dir: number) => {
+    if (isExhausted) return;
     if (swipeMode === 'like') {
       setLastAction(dir > 0 ? 'like' : 'pass');
+      if (dir > 0) setSessionLikes((n) => n + 1);
       setTimeout(() => setLastAction(null), 650);
     }
     setPage(([i]) => [i + 1, dir]);
+  };
+
+  const restartDeck = () => {
+    setPage([0, 0]);
+    setSessionLikes(0);
+    setLastAction(null);
   };
 
   const handleDragEnd = (_: any, info: { offset: { x: number }; velocity: { x: number } }) => {
@@ -122,11 +134,44 @@ export const ExploreSwipeView: React.FC<ExploreSwipeViewProps> = ({
             </button>
           </div>
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#2170e4]/15 text-[#0058be] dark:text-[#adc6ff]">
-            {(currentIndex % cards.length) + 1} / {cards.length}
+            {isExhausted ? '已完成' : `${currentIndex + 1} / ${cards.length}`}
           </span>
         </div>
       </div>
 
+      {/* Deck exhausted: ritual ending */}
+      {isExhausted ? (
+        <div className="relative w-full h-[520px] md:h-[580px] flex items-center justify-center">
+          <div className="glass-panel rounded-3xl p-8 md:p-10 text-center border border-white/60 dark:border-white/15 shadow-xl max-w-sm w-full">
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 240, damping: 18 }}
+              className="w-20 h-20 mx-auto mb-5 rounded-full bg-gradient-to-tr from-purple-500 via-[#2170e4] to-[#0058be] flex items-center justify-center shadow-lg"
+            >
+              <span className="material-symbols-outlined text-[40px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                auto_awesome
+              </span>
+            </motion.div>
+            <h3 className="font-headline text-xl font-bold text-[#0b1c30] dark:text-white mb-2">
+              今日探索完毕 ✨
+            </h3>
+            <p className="text-xs text-[#424754] dark:text-gray-300 leading-relaxed mb-6">
+              你浏览了 {cards.length} 张灵感卡片{swipeMode === 'like' && sessionLikes > 0 ? `，收获了 ${sessionLikes} 次心动` : ''}。
+              愿这些美好陪你度过今天。
+            </p>
+            <div className="flex flex-col gap-2.5">
+              <button
+                onClick={restartDeck}
+                className="w-full py-2.5 rounded-full text-xs font-bold bg-gradient-to-r from-[#2170e4] to-[#0058be] text-white shadow-md active:scale-95 transition-all"
+              >
+                再探索一轮
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Swipe Deck Container */}
       <div className="relative w-full h-[520px] md:h-[580px] flex items-center justify-center">
         {/* Next Card Background - scales up live as the top card is dragged */}
@@ -339,6 +384,8 @@ export const ExploreSwipeView: React.FC<ExploreSwipeViewProps> = ({
           </button>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

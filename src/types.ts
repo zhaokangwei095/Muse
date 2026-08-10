@@ -48,6 +48,28 @@ export interface Conversation {
   updatedAt: string;
 }
 
+export interface AppNotification {
+  id: string;
+  type: 'like' | 'comment' | 'reply' | 'follow' | string;
+  actorName: string;
+  text: string;
+  postId?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AlbumCard {
+  id: string;
+  colorId: string;
+  colorName: string;
+  gradient: string;
+  title: string;
+  text: string;
+  tags: string[];
+  category: string;
+  savedAt: string;
+}
+
 export interface BookmarkCollection {
   id: string;
   title: string;

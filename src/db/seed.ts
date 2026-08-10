@@ -16,6 +16,9 @@ export function seedDatabase(): void {
   seedActivityHistory(db);
   // Seed chat conversations independently (works on existing DBs too)
   seedConversations(db);
+  // Seed follows & notifications independently
+  seedFollows(db);
+  seedNotifications(db);
 
   // Check if already seeded
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
@@ -143,6 +146,29 @@ function seedConversations(db: ReturnType<typeof getDb>): void {
   `);
   insertMsg.run('msg_mia_1', 'other', '你的极简系列太打动我了，有空聊聊创作呀 ✨', '09:20 AM', 'c_mia');
   insertMsg.run('msg_cafe_1', 'other', '嗨！你收藏的那篇手冲咖啡指南我也超喜欢～', 'Yesterday', 'c_cafe');
+}
+
+// Seed follow relationships; safe to run against existing databases
+function seedFollows(db: ReturnType<typeof getDb>): void {
+  const count = db.prepare('SELECT COUNT(*) as count FROM follows').get() as any;
+  if (count.count > 0) return;
+  const insert = db.prepare('INSERT OR IGNORE INTO follows (user_id, target_id) VALUES (?, ?)');
+  insert.run(CURRENT_USER_ID, 'user_2');
+  insert.run(CURRENT_USER_ID, 'cafe_life');
+}
+
+// Seed welcome notifications; safe to run against existing databases
+function seedNotifications(db: ReturnType<typeof getDb>): void {
+  const count = db.prepare('SELECT COUNT(*) as count FROM notifications').get() as any;
+  if (count.count > 0) return;
+  console.log('Seeding notifications...');
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO notifications (id, type, actor_name, text, post_id, is_read, created_at)
+    VALUES (?, ?, ?, ?, ?, 0, datetime('now', ?))
+  `);
+  insert.run('ntf_1', 'like', 'Elena Rivera', '赞了你的《Studio Morning》', 'post_1', '-20 minutes');
+  insert.run('ntf_2', 'comment', 'Mia Chen', '评论了《The Architecture of Silence》：“太治愈了，光与空间的关系讲得真好”', 'post_3', '-2 hours');
+  insert.run('ntf_3', 'follow', 'CafeLife', '开始关注你了', '', '-1 day');
 }
 
 // Deterministic pseudo-random generator so the calendar history is stable

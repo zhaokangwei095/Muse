@@ -238,8 +238,10 @@ export const MessagesView: React.FC = () => {
 
       {/* Messages Thread */}
       <div ref={threadRef} className="flex-1 glass-card rounded-3xl p-4 md:p-6 mb-3 overflow-y-auto space-y-4 min-h-[340px] max-h-[460px] flex flex-col">
-        {messages.map((msg) => {
+        {messages.map((msg, msgIdx) => {
           const isUser = msg.sender === 'user';
+          // Read receipt: a user message is "read" once the other side replies after it
+          const isRead = isUser && messages.slice(msgIdx + 1).some((m) => m.sender === 'other');
           return (
             <div
               key={msg.id}
@@ -264,8 +266,13 @@ export const MessagesView: React.FC = () => {
                 )}
                 {msg.text}
               </div>
-              <span className="text-[10px] text-[#424754] dark:text-gray-400 mt-1 px-1">
+              <span className="text-[10px] text-[#424754] dark:text-gray-400 mt-1 px-1 flex items-center gap-1.5">
                 {msg.timestamp}
+                {isUser && (
+                  <span className={isRead ? 'text-[#0058be] dark:text-[#adc6ff] font-semibold' : 'text-[#424754]/50 dark:text-gray-500'}>
+                    {isRead ? '已读' : '未读'}
+                  </span>
+                )}
               </span>
             </div>
           );

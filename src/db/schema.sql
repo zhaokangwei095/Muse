@@ -73,6 +73,25 @@ CREATE TABLE IF NOT EXISTS conversations (
   FOREIGN KEY (contact_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS follows (
+  user_id TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, target_id),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (target_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  actor_name TEXT DEFAULT '',
+  text TEXT DEFAULT '',
+  post_id TEXT DEFAULT '',
+  is_read INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   post_id TEXT NOT NULL,

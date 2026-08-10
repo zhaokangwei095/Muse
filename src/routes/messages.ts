@@ -71,6 +71,15 @@ router.post('/reply', (req: Request, res: Response) => {
     );
     bumpConversation(db, conversationId, text.trim());
 
+    // Also surface the reply as a notification
+    const { personaName = '' } = req.body;
+    if (personaName) {
+      db.prepare(`INSERT INTO notifications (id, type, actor_name, text, post_id, is_read, created_at)
+        VALUES (?, 'reply', ?, ?, '', 0, datetime('now'))`).run(
+        `ntf_${Date.now()}`, personaName, `回复了你的私信：“${text.trim().slice(0, 40)}”`
+      );
+    }
+
     res.json({ id, sender: 'other', text: text.trim(), timestamp });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { NavTab, PostItem, User, DirectMessage, BookmarkCollection, Conversation } from '../types';
+import { NavTab, PostItem, User, DirectMessage, BookmarkCollection, Conversation, AppNotification } from '../types';
 import { CREATOR_ELENA_RIVERA } from '../data/mockData';
+import { loadOrCreateGuest } from '../data/guestIdentity';
 import { api } from '../services/api';
 
 interface Toast {
@@ -32,6 +33,12 @@ interface AppContextType {
   isReplying: boolean;
   isLoading: boolean;
   toasts: Toast[];
+  followedIds: string[];
+  notifications: AppNotification[];
+  unreadCount: number;
+  favTags: string[];
+  cardAlbumOpen: boolean;
+  setCardAlbumOpen: (open: boolean) => void;
 
   // Actions
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -43,6 +50,10 @@ interface AppContextType {
   updateUser: (data: Partial<User>) => Promise<void>;
   addComment: (postId: string, text: string) => Promise<void>;
   refreshPosts: () => Promise<void>;
+  toggleFollow: (targetId: string) => Promise<boolean>;
+  markNotificationsRead: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
+  toggleFavTag: (key: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -79,6 +90,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isReplying, setIsReplying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [followedIds, setFollowedIds] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [favTags, setFavTags] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('muse-fav-tags') || '[]'); } catch { return []; }
+  });
+  const [cardAlbumOpen, setCardAlbumOpen] = useState(false);
 
   // Toast system
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -128,18 +145,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [userData, postsData, exploreData, conversationsData, bookmarksData] = await Promise.all([
+        // Guest identity: personalize the demo user on first visit
+        const { profile, created } = loadOrCreateGuest();
+
+        const [userData, postsData, exploreData, conversationsData, bookmarksData, followingData, notificationsData] = await Promise.all([
           api.getUser(),
           api.getPosts(),
           api.getExploreCards(),
           api.getConversations(),
           api.getBookmarks(),
+          api.getFollowing(),
+          api.getNotifications(),
         ]);
-        setUser(userData);
+
+        // Sync freshly created guest profile into the backend user record
+        if (created || userData.name !== profile.name) {
+          api.updateUser({ name: profile.name, handle: profile.handle, avatar: profile.avatar }).catch(() => {});
+          setUser({ ...userData, name: profile.name, handle: profile.handle, avatar: profile.avatar });
+          if (created) showToast(`欢迎来到 Muse，${profile.name} ✨`, 'success');
+        } else {
+          setUser(userData);
+        }
+
         setPosts(postsData);
         setExploreCards(exploreData);
         setConversations(conversationsData);
         setBookmarks(bookmarksData);
+        setFollowedIds(followingData);
+        setNotifications(notificationsData);
       } catch (err) {
         console.error('Failed to load data:', err);
         showToast('Failed to load data. Please refresh.', 'error');
@@ -210,7 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const { reply } = await api.chatReply(persona, text);
-        const savedReply = await api.saveReply(reply || "Thanks for reaching out!", conversationId);
+        const savedReply = await api.saveReply(reply || "Thanks for reaching out!", conversationId, persona.name);
         setMessages((prev) => [...prev, savedReply]);
       } catch {
         // Fallback if AI is not configured
@@ -263,6 +296,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showToast]);
 
+  // Follow / unfollow an author
+  const toggleFollow = useCallback(async (targetId: string): Promise<boolean> => {
+    try {
+      const { isFollowing } = await api.toggleFollow(targetId);
+      setFollowedIds((prev) =>
+        isFollowing ? Array.from(new Set([...prev, targetId])) : prev.filter((id) => id !== targetId)
+      );
+      showToast(isFollowing ? '已关注 ✓' : '已取消关注', 'success');
+      return isFollowing;
+    } catch {
+      showToast('操作失败，请重试', 'error');
+      return false;
+    }
+  }, [showToast]);
+
+  // Notifications
+  const refreshNotifications = useCallback(async () => {
+    try {
+      setNotifications(await api.getNotifications());
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const markNotificationsRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try { await api.markNotificationsRead(); } catch { /* silent */ }
+  }, []);
+
+  // Long-pressed favorite tags (persisted locally)
+  const toggleFavTag = useCallback((key: string) => {
+    setFavTags((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      localStorage.setItem('muse-fav-tags', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
     <AppContext.Provider value={{
       currentTab, setCurrentTab,
@@ -272,8 +343,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user, posts, exploreCards, conversations, activeConversationId, setActiveConversationId, messages, bookmarks,
       selectedPost, setSelectedPost,
       isReplying, isLoading, toasts,
+      followedIds, notifications,
+      unreadCount: notifications.filter((n) => !n.isRead).length,
+      favTags, cardAlbumOpen, setCardAlbumOpen,
       showToast, toggleLike, toggleSave, publishPost,
       sendMessage, removeBookmark, updateUser, addComment, refreshPosts,
+      toggleFollow, markNotificationsRead, refreshNotifications, toggleFavTag,
     }}>
       {children}
     </AppContext.Provider>

@@ -40,6 +40,12 @@ export function getDb(): Database.Database {
     if (!msgCols.some((c) => c.name === 'conversation_id')) {
       db.exec("ALTER TABLE messages ADD COLUMN conversation_id TEXT DEFAULT 'c_elena'");
     }
+
+    // Migration: add reply_to to comments for databases created earlier
+    const commentCols = db.prepare('PRAGMA table_info(comments)').all() as any[];
+    if (!commentCols.some((c) => c.name === 'reply_to')) {
+      db.exec("ALTER TABLE comments ADD COLUMN reply_to TEXT DEFAULT ''");
+    }
   }
   return db;
 }
