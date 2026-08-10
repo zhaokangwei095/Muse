@@ -34,6 +34,12 @@ export function getDb(): Database.Database {
       throw new Error('schema.sql not found. Ensure it is in src/db/ or copied to dist.');
     }
     db.exec(schema);
+
+    // Migration: add conversation_id to messages for databases created earlier
+    const msgCols = db.prepare('PRAGMA table_info(messages)').all() as any[];
+    if (!msgCols.some((c) => c.name === 'conversation_id')) {
+      db.exec("ALTER TABLE messages ADD COLUMN conversation_id TEXT DEFAULT 'c_elena'");
+    }
   }
   return db;
 }

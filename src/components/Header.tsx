@@ -9,7 +9,6 @@ interface HeaderProps {
   onOpenSettings: () => void;
   isMobile: boolean;
   onOpenMenu: () => void;
-  onToggleExploreMode: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,21 +19,16 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   isMobile,
   onOpenMenu,
-  onToggleExploreMode,
 }) => {
-  // On the Explore tab, the top-left button toggles feed/cards mode;
-  // everywhere else it opens the drawer menu.
-  const onExplore = currentTab === 'explore';
-
   if (isMobile) {
     return (
       <header className="fixed top-0 left-0 w-full z-50 bg-white/75 dark:bg-[#0b1c30]/75 backdrop-blur-xl border-b border-white/40 dark:border-white/10 shadow-xs flex items-center justify-between px-6 h-16 transition-colors">
         <button
-          onClick={onExplore ? onToggleExploreMode : onOpenMenu}
+          onClick={onOpenMenu}
           className="text-[#0058be] dark:text-[#adc6ff] hover:opacity-80 transition-opacity active:scale-95 p-1"
-          aria-label={onExplore ? 'Switch explore mode' : 'Menu'}
+          aria-label="Menu"
         >
-          <span className="material-symbols-outlined text-[24px]">{onExplore ? 'sync_alt' : 'menu'}</span>
+          <span className="material-symbols-outlined text-[24px]">menu</span>
         </button>
 
         <h1

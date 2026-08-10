@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { NavTab, PostItem, User, DirectMessage, BookmarkCollection } from '../types';
+import { NavTab, PostItem, User, DirectMessage, BookmarkCollection, Conversation } from '../types';
 import { CREATOR_ELENA_RIVERA } from '../data/mockData';
 import { api } from '../services/api';
 
@@ -22,6 +22,9 @@ interface AppContextType {
   user: User | null;
   posts: PostItem[];
   exploreCards: PostItem[];
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  setActiveConversationId: (id: string | null) => void;
   messages: DirectMessage[];
   bookmarks: BookmarkCollection[];
   selectedPost: PostItem | null;
@@ -68,6 +71,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [exploreCards, setExploreCards] = useState<PostItem[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkCollection[]>([]);
   const [selectedPost, setSelectedPost] = useState<PostItem | null>(null);
@@ -123,17 +128,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [userData, postsData, exploreData, messagesData, bookmarksData] = await Promise.all([
+        const [userData, postsData, exploreData, conversationsData, bookmarksData] = await Promise.all([
           api.getUser(),
           api.getPosts(),
           api.getExploreCards(),
-          api.getMessages(),
+          api.getConversations(),
           api.getBookmarks(),
         ]);
         setUser(userData);
         setPosts(postsData);
         setExploreCards(exploreData);
-        setMessages(messagesData);
+        setConversations(conversationsData);
         setBookmarks(bookmarksData);
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -144,6 +149,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     loadData();
   }, []);
+
+  // Load messages whenever a conversation is opened
+  useEffect(() => {
+    if (!activeConversationId) {
+      setMessages([]);
+      return;
+    }
+    api.getMessages(activeConversationId).then(setMessages).catch(() => {});
+  }, [activeConversationId]);
 
   const refreshPosts = useCallback(async () => {
     try {
@@ -187,26 +201,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   const sendMessage = useCallback(async (text: string, image?: string) => {
+    const conversationId = activeConversationId || 'c_elena';
+    const persona = conversations.find((c) => c.id === conversationId)?.contact || CREATOR_ELENA_RIVERA;
     try {
-      const userMsg = await api.sendMessage(text, image);
-      setMessages(prev => [...prev, userMsg]);
+      const userMsg = await api.sendMessage(text, image, conversationId);
+      setMessages((prev) => [...prev, userMsg]);
       setIsReplying(true);
 
       try {
-        const { reply } = await api.chatReply(CREATOR_ELENA_RIVERA, text);
-        const savedReply = await api.saveReply(reply || "Thanks for reaching out!");
-        setMessages(prev => [...prev, savedReply]);
+        const { reply } = await api.chatReply(persona, text);
+        const savedReply = await api.saveReply(reply || "Thanks for reaching out!", conversationId);
+        setMessages((prev) => [...prev, savedReply]);
       } catch {
         // Fallback if AI is not configured
-        const fallback = await api.saveReply("Thanks for your note! I'd love to chat more soon.");
-        setMessages(prev => [...prev, fallback]);
+        const fallback = await api.saveReply("Thanks for your note! I'd love to chat more soon.", conversationId);
+        setMessages((prev) => [...prev, fallback]);
       }
+
+      // Bump conversation preview to the top
+      setConversations((prev) => {
+        const bumped = prev.map((c) =>
+          c.id === conversationId
+            ? { ...c, lastText: text.trim() || '[图片]', updatedAt: new Date().toISOString() }
+            : c
+        );
+        return bumped.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+      });
     } catch (err) {
       showToast('Failed to send message', 'error');
     } finally {
       setIsReplying(false);
     }
-  }, [showToast]);
+  }, [activeConversationId, conversations, showToast]);
 
   const removeBookmark = useCallback(async (id: string) => {
     try {
@@ -243,7 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isDarkMode, toggleDarkMode,
       isMobile,
       exploreMode, toggleExploreMode, setExploreMode,
-      user, posts, exploreCards, messages, bookmarks,
+      user, posts, exploreCards, conversations, activeConversationId, setActiveConversationId, messages, bookmarks,
       selectedPost, setSelectedPost,
       isReplying, isLoading, toasts,
       showToast, toggleLike, toggleSave, publishPost,

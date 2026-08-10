@@ -41,6 +41,13 @@ export interface DirectMessage {
   image?: string;
 }
 
+export interface Conversation {
+  id: string;
+  contact: User;
+  lastText: string;
+  updatedAt: string;
+}
+
 export interface BookmarkCollection {
   id: string;
   title: string;

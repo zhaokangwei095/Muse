@@ -61,7 +61,16 @@ CREATE TABLE IF NOT EXISTS messages (
   text TEXT NOT NULL,
   timestamp TEXT NOT NULL,
   image TEXT DEFAULT '',
+  conversation_id TEXT DEFAULT 'c_elena',
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+  id TEXT PRIMARY KEY,
+  contact_id TEXT NOT NULL,
+  last_text TEXT DEFAULT '',
+  updated_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (contact_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS comments (

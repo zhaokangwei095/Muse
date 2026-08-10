@@ -11,6 +11,7 @@ import { seedDatabase } from './src/db/seed';
 
 import postsRouter from './src/routes/posts';
 import messagesRouter from './src/routes/messages';
+import conversationsRouter from './src/routes/conversations';
 import usersRouter from './src/routes/users';
 import bookmarksRouter from './src/routes/bookmarks';
 import aiRouter from './src/routes/ai';
@@ -58,6 +59,7 @@ app.get('/mobile-preview', mobilePreviewHandler);
 // Mount route modules
 app.use('/api/posts', postsRouter);
 app.use('/api/messages', messagesRouter);
+app.use('/api/conversations', conversationsRouter);
 app.use('/api/user', usersRouter);
 app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/ai', aiLimiter, aiRouter);

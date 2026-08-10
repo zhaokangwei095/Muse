@@ -26,7 +26,7 @@ const LEVEL_CLASSES = [
 
 const WEEKDAY_LABELS = ['一', '', '三', '', '五', '', ''];
 
-export const InspirationCalendar: React.FC = () => {
+export const InspirationCalendar: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const [activity, setActivity] = useState<DayActivity[]>([]);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export const InspirationCalendar: React.FC = () => {
 
   // Build a full 14-week grid (Mon-start columns) ending today
   const { weeks, totalLikes, totalPosts, activeDays } = useMemo(() => {
-    const map = new Map(activity.map((a) => [a.date, a]));
+    const map = new Map<string, DayActivity>(activity.map((a) => [a.date, a]));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -71,7 +71,7 @@ export const InspirationCalendar: React.FC = () => {
   }, [activity]);
 
   return (
-    <div className="glass-panel rounded-3xl p-5 md:p-6 mb-8 border border-white/60 dark:border-white/10 shadow-sm">
+    <div className={`glass-panel rounded-3xl border border-white/60 dark:border-white/10 shadow-sm ${compact ? 'p-4' : 'p-5 md:p-6 mb-8'}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-headline font-bold text-base text-[#0b1c30] dark:text-white flex items-center gap-2">

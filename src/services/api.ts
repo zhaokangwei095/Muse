@@ -1,4 +1,4 @@
-import { PostItem, User, DirectMessage, BookmarkCollection } from '../types';
+import { PostItem, User, DirectMessage, BookmarkCollection, Conversation } from '../types';
 import { API } from '../constants';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -51,13 +51,16 @@ export const api = {
     request(API.USER, { method: 'PUT', body: JSON.stringify(data) }),
 
   // Messages
-  getMessages: (): Promise<DirectMessage[]> => request(API.MESSAGES),
+  getConversations: (): Promise<Conversation[]> => request(API.CONVERSATIONS),
 
-  sendMessage: (text: string, image?: string): Promise<DirectMessage> =>
-    request(API.MESSAGES, { method: 'POST', body: JSON.stringify({ text, image }) }),
+  getMessages: (conversationId = 'c_elena'): Promise<DirectMessage[]> =>
+    request(`${API.MESSAGES}?conversation=${encodeURIComponent(conversationId)}`),
 
-  saveReply: (text: string): Promise<DirectMessage> =>
-    request(`${API.MESSAGES}/reply`, { method: 'POST', body: JSON.stringify({ text }) }),
+  sendMessage: (text: string, image?: string, conversationId = 'c_elena'): Promise<DirectMessage> =>
+    request(API.MESSAGES, { method: 'POST', body: JSON.stringify({ text, image, conversationId }) }),
+
+  saveReply: (text: string, conversationId = 'c_elena'): Promise<DirectMessage> =>
+    request(`${API.MESSAGES}/reply`, { method: 'POST', body: JSON.stringify({ text, conversationId }) }),
 
   // Bookmarks
   getBookmarks: (): Promise<BookmarkCollection[]> => request(API.BOOKMARKS),

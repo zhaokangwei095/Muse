@@ -14,6 +14,8 @@ export function seedDatabase(): void {
 
   // Seed inspiration calendar history independently (works on existing DBs too)
   seedActivityHistory(db);
+  // Seed chat conversations independently (works on existing DBs too)
+  seedConversations(db);
 
   // Check if already seeded
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
@@ -119,6 +121,28 @@ export function seedDatabase(): void {
   insertComment.run('comment_2', 'post_3', 'Community Member', 'The photography in this piece is so calming.');
 
   console.log('Database seeded successfully!');
+}
+
+// Seed chat conversations; safe to run against existing databases
+function seedConversations(db: ReturnType<typeof getDb>): void {
+  const count = db.prepare('SELECT COUNT(*) as count FROM conversations').get() as any;
+  if (count.count > 0) return;
+
+  console.log('Seeding chat conversations...');
+  const insertConversation = db.prepare(`
+    INSERT OR IGNORE INTO conversations (id, contact_id, last_text, updated_at)
+    VALUES (?, ?, ?, datetime('now', ?))
+  `);
+  insertConversation.run('c_elena', 'user_2', INITIAL_MESSAGES[0]?.text || '', '-2 minutes');
+  insertConversation.run('c_mia', 'user_mia', '你的极简系列太打动我了，有空聊聊创作呀 ✨', '-3 hours');
+  insertConversation.run('c_cafe', 'cafe_life', '嗨！你收藏的那篇手冲咖啡指南我也超喜欢～', '-1 day');
+
+  const insertMsg = db.prepare(`
+    INSERT OR IGNORE INTO messages (id, sender, text, timestamp, conversation_id)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  insertMsg.run('msg_mia_1', 'other', '你的极简系列太打动我了，有空聊聊创作呀 ✨', '09:20 AM', 'c_mia');
+  insertMsg.run('msg_cafe_1', 'other', '嗨！你收藏的那篇手冲咖啡指南我也超喜欢～', 'Yesterday', 'c_cafe');
 }
 
 // Deterministic pseudo-random generator so the calendar history is stable

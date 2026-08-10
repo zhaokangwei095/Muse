@@ -78,7 +78,6 @@ function AppContent() {
         onOpenSettings={() => setCurrentTab('settings')}
         isMobile={isMobile}
         onOpenMenu={() => setIsMenuOpen(true)}
-        onToggleExploreMode={toggleExploreMode}
       />
 
       <main>
@@ -135,12 +134,7 @@ function AppContent() {
               />
             )}
             {currentTab === 'messages' && (
-              <MessagesView
-                recipient={CREATOR_ELENA_RIVERA}
-                messages={messages}
-                onSendMessage={sendMessage}
-                isReplying={isReplying}
-              />
+              <MessagesView />
             )}
             {currentTab === 'bookmarks' && (
               <BookmarksView

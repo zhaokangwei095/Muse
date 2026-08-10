@@ -15,6 +15,7 @@ export const API = {
   POST_COMMENTS: (id: string) => `/api/posts/${id}/comments`,
   MESSAGES: '/api/messages',
   BOOKMARKS: '/api/bookmarks',
+  CONVERSATIONS: '/api/conversations',
   USER: '/api/user',
   AI_INSPIRE: '/api/ai/generate-inspiration',
   AI_CHAT: '/api/ai/chat-reply',

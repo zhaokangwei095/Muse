@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NavTab, User } from '../types';
+import { InspirationCalendar } from './InspirationCalendar';
 
 interface MobileMenuDrawerProps {
   isOpen: boolean;
@@ -12,12 +13,10 @@ interface MobileMenuDrawerProps {
   onToggleDarkMode: () => void;
 }
 
+// Slimmed down: every page is reachable from the bottom nav,
+// so the drawer focuses on the inspiration calendar + special entries.
 const MENU_ITEMS: Array<{ tab: NavTab; icon: string; label: string; desc: string }> = [
-  { tab: 'explore', icon: 'explore', label: '探索', desc: '瀑布流与灵感卡片' },
-  { tab: 'bookmarks', icon: 'favorite', label: '关注', desc: '收藏的帖子与灵感' },
-  { tab: 'messages', icon: 'chat_bubble', label: '聊天', desc: '与创作者对话' },
-  { tab: 'profile', icon: 'person', label: '我', desc: '个人主页与作品' },
-  { tab: 'create', icon: 'casino', label: '灵感抽卡', desc: '一句话抽卡，AI 完善文案' },
+  { tab: 'create', icon: 'casino', label: '灵感抽卡', desc: '色彩心境仪式，AI 完善文案' },
   { tab: 'settings', icon: 'settings', label: '设置', desc: '主题与偏好' },
 ];
 
@@ -55,11 +54,11 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="fixed top-0 left-0 z-[70] h-full w-[300px] max-w-[85vw] glass-panel border-r border-white/60 dark:border-white/10 shadow-2xl flex flex-col bg-white/90 dark:bg-[#0e2036]/95"
+            className="fixed top-0 left-0 z-[70] h-full w-[320px] max-w-[88vw] glass-panel border-r border-white/60 dark:border-white/10 shadow-2xl flex flex-col bg-white/95 dark:bg-[#0e2036]/95"
           >
             {/* User Header */}
-            <div className="p-6 pb-4 border-b border-slate-200/60 dark:border-slate-700/60">
-              <div className="flex items-center justify-between mb-5">
+            <div className="p-5 pb-4 border-b border-slate-200/60 dark:border-slate-700/60">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="font-headline text-xl font-bold text-[#0058be] dark:text-[#adc6ff]">
                   Muse
                 </h2>
@@ -96,38 +95,43 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
               )}
             </div>
 
-            {/* Menu Items */}
-            <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-              {MENU_ITEMS.map((item) => {
-                const isActive = currentTab === item.tab;
-                return (
-                  <button
-                    key={item.tab}
-                    onClick={() => handleTab(item.tab)}
-                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition-all active:scale-[0.98] ${
-                      isActive
-                        ? 'bg-[#2170e4]/15 text-[#0058be] dark:text-[#adc6ff]'
-                        : 'text-[#0b1c30] dark:text-gray-200 hover:bg-white/60 dark:hover:bg-white/10'
-                    }`}
-                  >
-                    <span
-                      className="material-symbols-outlined text-[22px]"
-                      style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+            {/* Inspiration Calendar - visible right inside the drawer */}
+            <div className="p-3 overflow-y-auto no-scrollbar flex-1">
+              <InspirationCalendar compact />
+
+              {/* Menu Items */}
+              <nav className="space-y-1 mt-2">
+                {MENU_ITEMS.map((item) => {
+                  const isActive = currentTab === item.tab;
+                  return (
+                    <button
+                      key={item.tab}
+                      onClick={() => handleTab(item.tab)}
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-left transition-all active:scale-[0.98] ${
+                        isActive
+                          ? 'bg-[#2170e4]/15 text-[#0058be] dark:text-[#adc6ff]'
+                          : 'text-[#0b1c30] dark:text-gray-200 hover:bg-white/60 dark:hover:bg-white/10'
+                      }`}
                     >
-                      {item.icon}
-                    </span>
-                    <div className="min-w-0">
-                      <p className={`text-sm leading-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>
-                        {item.label}
-                      </p>
-                      <p className="text-[10px] text-[#424754] dark:text-gray-400 truncate">
-                        {item.desc}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
+                      <span
+                        className="material-symbols-outlined text-[22px]"
+                        style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+                      >
+                        {item.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <p className={`text-sm leading-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>
+                          {item.label}
+                        </p>
+                        <p className="text-[10px] text-[#424754] dark:text-gray-400 truncate">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
 
             {/* Footer: Theme Toggle */}
             <div className="p-4 border-t border-slate-200/60 dark:border-slate-700/60">
