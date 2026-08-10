@@ -173,8 +173,9 @@
    so the app renders the mobile UI for design work.
    ============================================ */
 
-/* Constrain every view container to a phone-like width with mobile padding */
-html.force-mobile main > div {
+/* Constrain every view container to a phone-like width with mobile padding.
+   Views sit inside a motion transition wrapper, so target the inner div. */
+html.force-mobile main > div > div {
   max-width: 520px !important;
   margin-left: auto !important;
   margin-right: auto !important;

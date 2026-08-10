@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PostItem } from '../types';
 import { DiscoveryFeedView } from './DiscoveryFeedView';
@@ -7,6 +7,8 @@ import { ExploreSwipeView } from './ExploreSwipeView';
 interface ExploreTabViewProps {
   posts: PostItem[];
   cards: PostItem[];
+  mode: ExploreMode;
+  onModeChange: (mode: ExploreMode) => void;
   onSelectPost: (post: PostItem) => void;
   onToggleLike: (postId: string) => void;
   onToggleSave: (postId: string) => void;
@@ -25,12 +27,13 @@ const modeVariants = {
 export const ExploreTabView: React.FC<ExploreTabViewProps> = ({
   posts,
   cards,
+  mode,
+  onModeChange,
   onSelectPost,
   onToggleLike,
   onToggleSave,
   onOpenMessagesWithAuthor,
 }) => {
-  const [mode, setMode] = useState<ExploreMode>('feed');
 
   return (
     <div className="w-full min-h-screen pt-20 pb-28 md:pt-28 md:pb-16 px-4 md:px-10 max-w-[1440px] mx-auto">
@@ -52,7 +55,7 @@ export const ExploreTabView: React.FC<ExploreTabViewProps> = ({
             />
           )}
           <button
-            onClick={() => setMode('feed')}
+            onClick={() => onModeChange('feed')}
             className={`relative z-10 w-[88px] py-2 rounded-full text-xs font-bold transition-colors ${
               mode === 'feed' ? 'text-white' : 'text-[#424754] dark:text-gray-300'
             }`}
@@ -60,7 +63,7 @@ export const ExploreTabView: React.FC<ExploreTabViewProps> = ({
             瀑布流
           </button>
           <button
-            onClick={() => setMode('cards')}
+            onClick={() => onModeChange('cards')}
             className={`relative z-10 w-[88px] py-2 rounded-full text-xs font-bold transition-colors ${
               mode === 'cards' ? 'text-white' : 'text-[#424754] dark:text-gray-300'
             }`}

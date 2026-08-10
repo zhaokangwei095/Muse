@@ -53,8 +53,8 @@ export const api = {
   // Messages
   getMessages: (): Promise<DirectMessage[]> => request(API.MESSAGES),
 
-  sendMessage: (text: string): Promise<DirectMessage> =>
-    request(API.MESSAGES, { method: 'POST', body: JSON.stringify({ text }) }),
+  sendMessage: (text: string, image?: string): Promise<DirectMessage> =>
+    request(API.MESSAGES, { method: 'POST', body: JSON.stringify({ text, image }) }),
 
   saveReply: (text: string): Promise<DirectMessage> =>
     request(`${API.MESSAGES}/reply`, { method: 'POST', body: JSON.stringify({ text }) }),

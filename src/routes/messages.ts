@@ -20,24 +20,24 @@ router.get('/', (req: Request, res: Response) => {
   }
 });
 
-// POST /api/messages - Send a message
+// POST /api/messages - Send a message (optionally with an image data URL)
 router.post('/', (req: Request, res: Response) => {
   try {
     const db = getDb();
-    const { text } = req.body;
+    const { text, image } = req.body;
 
-    if (!text || !text.trim()) {
-      return res.status(400).json({ error: 'Message text is required' });
+    if ((!text || !text.trim()) && !image) {
+      return res.status(400).json({ error: 'Message text or image is required' });
     }
 
     const id = `msg_${Date.now()}`;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    db.prepare('INSERT INTO messages (id, sender, text, timestamp) VALUES (?, ?, ?, ?)').run(
-      id, 'user', text.trim(), timestamp
+    db.prepare('INSERT INTO messages (id, sender, text, timestamp, image) VALUES (?, ?, ?, ?, ?)').run(
+      id, 'user', (text || '').trim(), timestamp, image || ''
     );
 
-    res.json({ id, sender: 'user', text: text.trim(), timestamp });
+    res.json({ id, sender: 'user', text: (text || '').trim(), timestamp, image: image || undefined });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

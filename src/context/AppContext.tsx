@@ -16,6 +16,9 @@ interface AppContextType {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   isMobile: boolean;
+  exploreMode: 'feed' | 'cards';
+  toggleExploreMode: () => void;
+  setExploreMode: (mode: 'feed' | 'cards') => void;
   user: User | null;
   posts: PostItem[];
   exploreCards: PostItem[];
@@ -32,7 +35,7 @@ interface AppContextType {
   toggleLike: (postId: string) => void;
   toggleSave: (postId: string) => void;
   publishPost: (data: { title: string; content?: string; imageUrl?: string; category: string; tags: string[] }) => Promise<void>;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, image?: string) => Promise<void>;
   removeBookmark: (id: string) => void;
   updateUser: (data: Partial<User>) => Promise<void>;
   addComment: (postId: string, text: string) => Promise<void>;
@@ -57,6 +60,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (forced === '0') return false;
     return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
   });
+  // Explore tab sub-mode: waterfall feed or swipe cards (toggled via nav buttons)
+  const [exploreMode, setExploreMode] = useState<'feed' | 'cards'>('feed');
+  const toggleExploreMode = useCallback(() => {
+    setExploreMode((prev) => (prev === 'feed' ? 'cards' : 'feed'));
+  }, []);
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [exploreCards, setExploreCards] = useState<PostItem[]>([]);
@@ -178,9 +186,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [showToast]);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, image?: string) => {
     try {
-      const userMsg = await api.sendMessage(text);
+      const userMsg = await api.sendMessage(text, image);
       setMessages(prev => [...prev, userMsg]);
       setIsReplying(true);
 
@@ -234,6 +242,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       currentTab, setCurrentTab,
       isDarkMode, toggleDarkMode,
       isMobile,
+      exploreMode, toggleExploreMode, setExploreMode,
       user, posts, exploreCards, messages, bookmarks,
       selectedPost, setSelectedPost,
       isReplying, isLoading, toasts,

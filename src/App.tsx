@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer } from './components/Toast';
@@ -25,6 +26,7 @@ function AppContent() {
     currentTab, setCurrentTab,
     isDarkMode, toggleDarkMode,
     isMobile,
+    exploreMode, toggleExploreMode, setExploreMode,
     user, posts, exploreCards, messages, bookmarks,
     selectedPost, setSelectedPost,
     isReplying, isLoading,
@@ -34,6 +36,16 @@ function AppContent() {
 
   const [isEditProfileOpen, setIsEditProfileOpen] = React.useState(false);
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+
+  // Nav click: tapping the active Explore tab toggles feed/cards mode
+  const handleNavTab = (tab: Parameters<typeof setCurrentTab>[0]) => {
+    if (tab === 'explore' && currentTab === 'explore' && !selectedPost) {
+      toggleExploreMode();
+      return;
+    }
+    setSelectedPost(null);
+    setCurrentTab(tab);
+  };
 
   if (isLoading) {
     return (
@@ -60,16 +72,25 @@ function AppContent() {
 
       <Header
         currentTab={currentTab}
-        onTabChange={(tab) => { setSelectedPost(null); setCurrentTab(tab); }}
+        onTabChange={handleNavTab}
         isDarkMode={isDarkMode}
         onToggleDarkMode={toggleDarkMode}
         onOpenSettings={() => setCurrentTab('settings')}
         isMobile={isMobile}
         onOpenMenu={() => setIsMenuOpen(true)}
+        onToggleExploreMode={toggleExploreMode}
       />
 
       <main>
-        {selectedPost ? (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedPost ? `detail-${selectedPost.id}` : `tab-${currentTab}`}
+            initial={{ opacity: 0, y: 18, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -14, scale: 0.99 }}
+            transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            {selectedPost ? (
           <ArticleDetailView
             post={selectedPost}
             onBack={() => setSelectedPost(null)}
@@ -91,6 +112,8 @@ function AppContent() {
                 <ExploreTabView
                   posts={posts}
                   cards={exploreCards}
+                  mode={exploreMode}
+                  onModeChange={setExploreMode}
                   onSelectPost={(post) => setSelectedPost(post)}
                   onToggleLike={toggleLike}
                   onToggleSave={toggleSave}
@@ -148,12 +171,14 @@ function AppContent() {
             )}
           </>
         )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {!selectedPost && currentTab !== 'settings' && isMobile && (
         <BottomNavBar
           currentTab={currentTab}
-          onTabChange={(tab) => { setSelectedPost(null); setCurrentTab(tab); }}
+          onTabChange={handleNavTab}
         />
       )}
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { PostItem } from '../types';
 import { api } from '../services/api';
 import { useApp } from '../context/AppContext';
@@ -49,8 +50,16 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
       </button>
 
       {/* Article Header & Image */}
-      <div className="relative w-full h-[320px] md:h-[420px] rounded-3xl overflow-hidden shadow-lg mb-8">
-        <img
+      <motion.div
+        initial={{ opacity: 0, scale: 1.04 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
+        className="relative w-full h-[320px] md:h-[420px] rounded-3xl overflow-hidden shadow-lg mb-8"
+      >
+        <motion.img
+          initial={{ scale: 1.12 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.9, ease: [0.25, 0.1, 0.25, 1] }}
           src={
             post.imageUrl ||
             'https://lh3.googleusercontent.com/aida-public/AB6AXuDBN1k5xBvWZV7BDNgQ8dLu9v6FoU1C9TQ2bZYMJT-F93-aWNboYPx2eDoPszx3kFPrByyO4YeVXb3jXYJHzen0QvPvJhKvYjfPeEQEbY4cEc5-GWuLxgWEwWCCR0VQHP21yOJKkRqvfPd6bEURUKzTbMglYYq4fpWmSc34-8xu06WnTKGFcSZGM_QhWkRL_jjxTTrCNe01vbxHTiw2S9aDXS5QVdH9Qn5jy1T6WPUGJcNx90cn8ovyWA'
@@ -66,10 +75,15 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
             {post.title}
           </h1>
         </div>
-      </div>
+      </motion.div>
 
       {/* Author & Meta Row */}
-      <div className="glass-panel rounded-2xl p-4 md:p-6 mb-8 border border-white/60 dark:border-white/10 shadow-xs flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.12, ease: 'easeOut' }}
+        className="glass-panel rounded-2xl p-4 md:p-6 mb-8 border border-white/60 dark:border-white/10 shadow-xs flex items-center justify-between"
+      >
         <div className="flex items-center gap-3">
           <img
             src={post.author.avatar}
@@ -89,10 +103,15 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
         <button className="px-5 py-2 rounded-full bg-[#0058be] text-white text-xs font-bold shadow-md hover:bg-[#2170e4] active:scale-95 transition-all">
           Follow
         </button>
-      </div>
+      </motion.div>
 
       {/* Article Content */}
-      <article className="glass-card rounded-3xl p-6 md:p-10 border border-white/60 dark:border-white/10 shadow-sm space-y-6 text-[#0b1c30] dark:text-gray-100 leading-relaxed text-sm md:text-base">
+      <motion.article
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
+        className="glass-card rounded-3xl p-6 md:p-10 border border-white/60 dark:border-white/10 shadow-sm space-y-6 text-[#0b1c30] dark:text-gray-100 leading-relaxed text-sm md:text-base"
+      >
         <p>
           {post.content ||
             `In an era defined by constant connectivity and visual noise, the concept of a truly quiet space has shifted from a luxury to a necessity. We find ourselves constantly bombarded by notifications, vibrant colors demanding attention, and the relentless hum of modern existence. The architecture of silence isn't merely about acoustic dampening; it is an overarching philosophy of spatial design that seeks to minimize cognitive load.`}
@@ -134,7 +153,7 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({
             </div>
           </div>
         )}
-      </article>
+      </motion.article>
 
       {/* Interactive Engagement Bar */}
       <div className="mt-8 glass-panel rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10 shadow-md">
